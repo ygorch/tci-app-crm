@@ -66,3 +66,37 @@ Abra [http://localhost:3000](http://localhost:3000) no seu navegador para ver a 
 - A página de login da equipe estará em `/login`.
 - O formulário público de cadastro estará em `/cadastro`.
 - O dashboard principal estará em `/dashboard`.
+
+---
+
+## Populando o Banco com Usuários Iniciais (Seeding)
+
+O projeto inclui um script de seeding para popular o banco de dados com os usuários iniciais da equipe (Administradores, Gerentes, etc.). Por razões de segurança, o arquivo de script não faz parte do repositório e deve ser criado localmente.
+
+**Para popular o banco de dados:**
+
+1.  **Crie o arquivo de script:**
+    - Crie um diretório `scripts` na raiz do projeto.
+    - Dentro de `scripts`, crie um arquivo chamado `seed.ts`.
+    - Adicione a este arquivo a lógica para criar os usuários. O script deve conectar-se ao Supabase Admin e ao Resend para criar os usuários com senhas aleatórias e enviar as credenciais por e-mail.
+
+2.  **Crie um arquivo `.env` na raiz:**
+    - O script `seed.ts` é executado com Node.js e precisa de um arquivo `.env` (não `.env.local`) para carregar as variáveis de ambiente. Crie este arquivo e adicione as seguintes chaves:
+      ```env
+      NEXT_PUBLIC_SUPABASE_URL=SUA_URL_DO_PROJETO_SUPABASE
+      SUPABASE_SERVICE_ROLE_KEY=SUA_CHAVE_SERVICE_ROLE
+      RESEND_API_KEY=SUA_CHAVE_DA_API_DO_RESEND
+      ```
+
+3.  **Instale as dependências para o script:**
+    - O script requer `tsx` para executar TypeScript e `dotenv` para carregar as variáveis de ambiente.
+      ```bash
+      npm install --save-dev tsx dotenv
+      ```
+
+4.  **Execute o script de seeding:**
+    - Utilize o comando `npm` configurado no `package.json` para executar o script:
+      ```bash
+      npm run seed
+      ```
+    - O script irá criar os usuários que ainda não existem e enviar um e-mail com a senha gerada para cada um.

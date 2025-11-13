@@ -6,19 +6,19 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: Request) {
   const { email, password } = await request.json();
+  const origin = request.headers.get('origin');
 
   if (!email || !password) {
     return new NextResponse(JSON.stringify({ error: 'Email and password are required' }), { status: 400 });
   }
 
-  // Step 1: Create the user in Supabase Auth but do not confirm their email yet.
+  // Step 1: Create the user in Supabase Auth.
   const { data: { user }, error: signUpError } = await supabaseAdmin.auth.signUp({
     email,
     password,
     options: {
-      // Store the initial approval status in the user's metadata
       data: {
-        is_approved: false,
+        is_approved: false, // Set default approval status
       },
     },
   });
@@ -30,30 +30,31 @@ export async function POST(request: Request) {
     return new NextResponse(JSON.stringify({ error: 'User could not be created' }), { status: 500 });
   }
 
-  // Step 2: Send the email confirmation link using Resend
+  // Step 2: Generate the email confirmation link.
   const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-    type: 'signup', // Use the 'signup' link type for new user email verification
+    type: 'signup',
     email: user.email!,
+    password: password,
   });
 
   if (linkError) {
-    // In a real app, you might want to delete the user here to allow them to retry.
-    return new NextResponse(JSON.stringify({ error: 'Could not generate confirmation link' }), { status: 500 });
+    await supabaseAdmin.auth.admin.deleteUser(user.id);
+    return new NextResponse(JSON.stringify({ error: `Could not generate confirmation link: ${linkError.message}` }), { status: 500 });
   }
 
-  // The linkData contains a hashed token and other properties.
-  // We need to construct the verification URL manually for our custom flow.
-  const confirmationUrl = `${request.headers.get('origin')}/api/auth/confirm?token_hash=${linkData.properties.hashed_token}&type=signup&next=/auth/confirmed`;
+  // Step 3: Send the confirmation email to the user.
+  const confirmationUrl = `${origin}/api/auth/confirm?token=${linkData.properties.hashed_token}&type=signup&next=/auth/pending-approval`;
 
   try {
     await resend.emails.send({
       from: 'noreply@truecoffeeinc.com.br',
       to: user.email!,
       subject: 'Confirme seu cadastro no Coffee CRM',
-      html: `<p>Bem-vindo! Por favor, confirme seu endereço de e-mail clicando no link a seguir: <a href="${confirmationUrl}">Confirmar E-mail</a></p>`,
+      html: `<p>Bem-vindo! Para continuar, por favor, confirme seu endereço de e-mail clicando no link a seguir: <a href="${confirmationUrl}">Confirmar E-mail</a></p>`,
     });
   } catch (emailError) {
-    // Again, consider user deletion for retryability
+    // If the email fails to send, delete the user to allow them to retry.
+    await supabaseAdmin.auth.admin.deleteUser(user.id);
     return new NextResponse(JSON.stringify({ error: 'Could not send confirmation email' }), { status: 500 });
   }
 
