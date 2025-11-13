@@ -27,3 +27,7 @@ app.log
 
 # local env files
 .env*.local
+.env
+
+# scripts
+/scripts/
